@@ -48,7 +48,6 @@ def layer(op):
         # This output is now the input for the next layer.
         self.feed(layer_output)
         # Return self for chained calls.
-        
         return self
 
     return layer_decorated
@@ -95,7 +94,7 @@ class Network(object):
                         session.run(var.assign(data))
 
                     except ValueError:
-                        print(op_name + ' ' +param_name)
+                        print op_name + ' ' +param_name
                         if not ignore_missing:
                             raise
 
@@ -170,12 +169,11 @@ class Network(object):
         # Verify that the grouping parameter is valid
         assert c_i % group == 0
         assert c_o % group == 0
-            
         # Convolution for a given input and kernel
         convolve = lambda i, k: tf.nn.conv2d(i, k, [1, s_h, s_w, 1], padding='VALID')
 
         with tf.variable_scope(name) as scope:
-            kernel = self.weight_var('weights', [k_h, k_w, int(c_i) / group, c_o])
+            kernel = self.weight_var('weights', [k_h, k_w, c_i / group, c_o])
 
             if group == 1:
                 # This is the common-case. Convolve the input without any further complications.
@@ -195,7 +193,6 @@ class Network(object):
             if relu:
                 # ReLU non-linearity
                 output = tf.nn.relu(output, name=scope.name)
-            
             
             return output
 
@@ -419,5 +416,6 @@ class Network(object):
         # ReLU
         layerName = "layer%s_ReLU" % (id)
         output = tf.nn.relu(output, name=layerName)
+        print output.get_shape()
         self.feed(output)
         return self
