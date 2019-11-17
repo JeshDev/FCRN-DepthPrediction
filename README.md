@@ -1,4 +1,4 @@
-# Deeper Depth Prediction with Fully Convolutional Residual Networks
+# Camera-Independent Monocular Depth Prediction using Metric Space Inputs
 
 By [Iro Laina](http://campar.in.tum.de/Main/IroLaina), [Christian Rupprecht](http://campar.in.tum.de/Main/ChristianRupprecht), [Vasileios Belagiannis](http://www.robots.ox.ac.uk/~vb/), [Federico Tombari](http://campar.in.tum.de/Main/FedericoTombari), [Nassir Navab](http://campar.in.tum.de/Main/NassirNavab).
 
