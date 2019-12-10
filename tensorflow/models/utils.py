@@ -248,10 +248,8 @@ def augment_images(im_dir, indices):
         img= Image.fromarray(img_reshaped.astype(np.uint8), 'RGB')
         dpth = Image.fromarray(dpth_file.astype(np.float64))
         
-        border = (16, 16, 16, 16) # left, up, right, bottom
+        border = (8, 6, 8, 6) # left, up, right, bottom
         cropped_img = ImageOps.crop(img, border)
-        
-        border = (16, 16, 16, 16) # left, up, right, bottom
         cropped_dpth = ImageOps.crop(dpth, border)
         
         resized_img = cropped_img.resize((304, 228), Image.BILINEAR)       
@@ -294,19 +292,71 @@ def augment_operations(crops, cropped_img, cropped_dpth, resized_img, resized_dp
     enhanced_img = colorjitter.augment_image(np.asarray(resized_img))
     augmented_imgs.append(np.asarray(enhanced_img))
     augmented_gts.append(np.asarray(resized_dpth))
-        
-    flp = iaa.VerticalFlip(1)
-    flipped_img = flp.augment_image(np.asarray(resized_img))
-    flipped_dpth = flp.augment_image(np.asarray(resized_dpth))
-    augmented_imgs.append(np.asarray(flipped_img))
-    augmented_gts.append(np.asarray(flipped_dpth))
+    
+    brghtperturbator =  iaa.Multiply((0.8, 1.2), per_channel=0.2) #50-150% of original value
+    perturbed_img = brghtperturbator.augment_image(np.asarray(resized_img))
+    augmented_imgs.append(np.asarray(perturbed_img))
+    augmented_gts.append(np.asarray(resized_dpth))
         
     flp2 = iaa.HorizontalFlip(1)
     flipped_img2 = flp2.augment_image(np.asarray(resized_img))
     flipped_dpth2 = flp2.augment_image(np.asarray(resized_dpth))
     augmented_imgs.append(np.asarray(flipped_img2))
     augmented_gts.append(np.asarray(flipped_dpth2))
+
+def metric_images(im_dir, indices):
     
+    new_fx, new_fy ,new_cx, new_cy = Intrinsic.initIntrinsic()
+    metric_cord = Intrinsic.findMetricCordinates(new_fx, new_fy ,new_cx, new_cy, 304, 228)
+    final_fx, final_fy ,final_cx, final_cy = Intrinsic.crop_and_resizeIntrinsic(114, 152, 228, 304,new_fx, new_fy ,new_cx, new_cy, 2.0)
+    crop_metric_cord = Intrinsic.findMetricCordinates(final_fx, final_fy ,final_cx, final_cy, 304, 228)
+        
+    f = h5py.File(im_dir)
+    augmented_imgs = []
+    augmented_gts = []
+    ia.seed(1)
+    print(indices.shape)
+    for index in indices:
+        img_file = f['images'][index]
+        dpth_file = f['depths'][index].T
+        
+        img_reshaped = np.transpose(img_file, (2, 1, 0))
+        
+        img= Image.fromarray(img_reshaped.astype(np.uint8), 'RGB')
+        dpth = Image.fromarray(dpth_file.astype(np.float64))
+        
+        border = (8, 6, 8, 6) # left, up, right, bottom
+        cropped_img = ImageOps.crop(img, border)
+        cropped_dpth = ImageOps.crop(dpth, border)
+        
+        resized_img = cropped_img.resize((304, 228), Image.BILINEAR)       
+        resized_dpth = cropped_dpth.resize((160, 128), Image.NEAREST)      
+        resized_dpth = np.expand_dims(resized_dpth, axis = 3)
+        
+        transfrmd_img = np.concatenate((np.asarray(resized_img), metric_cord), axis = 2)
+                
+        crops = 2
+        for i in range(crops):
+            crop_img,col_cj,row_ci = Intrinsic.random_crop(np.asarray(cropped_img), (114, 152))
+            resize_img = Image.fromarray(crop_img.astype(np.uint8), 'RGB').resize((304, 228), Image.BILINEAR)
+            crop_transfrmd_img = np.concatenate((np.asarray(resize_img), crop_metric_cord), axis = 2)
+            crop_dpth = np.asarray(cropped_dpth)[row_ci:row_ci+224, col_cj: col_cj + 304]
+            resize_dpth = Image.fromarray(crop_dpth).resize((160, 128), Image.NEAREST)
+            resize_dpth = np.expand_dims(resize_dpth, axis = 3)
+            augmented_imgs.append(np.asarray(crop_transfrmd_img))
+            augmented_gts.append(np.asarray(resize_dpth))
+        
+        augmented_imgs.append(np.asarray(transfrmd_img))
+        augmented_gts.append(np.asarray(resized_dpth))
+        
+        #crops = 3
+        #augment_operations(crops, cropped_img, cropped_dpth, resized_img, resized_dpth, augmented_imgs, augmented_gts)
+    print('Shape ----- ' + str(np.shape(augmented_imgs)))   
+    augmented_imgs = np.asarray(augmented_imgs)
+    augmented_gts = np.asarray(augmented_gts)
+    
+    return augmented_imgs,augmented_gts
+
 def next_batch_nyu2(size, im_dir, indices, out_height, out_width, subdir ):
     images = []
     depths = []
@@ -323,10 +373,8 @@ def next_batch_nyu2(size, im_dir, indices, out_height, out_width, subdir ):
         img= Image.fromarray(img_reshaped.astype(np.uint8), 'RGB')
         dpth = Image.fromarray(dpth_file.astype(np.float64))
         
-        border = (16, 16, 16, 16) # left, up, right, bottom
+        border = (8, 6, 8, 6) # left, up, right, bottom
         cropped_img = ImageOps.crop(img, border)
-        
-        border = (16, 16, 16, 16) # left, up, right, bottom
         cropped_dpth = ImageOps.crop(dpth, border)
         
         resized_img = cropped_img.resize((304, 228), Image.BILINEAR)
@@ -347,27 +395,6 @@ def next_batch_nyu2(size, im_dir, indices, out_height, out_width, subdir ):
     depths = np.asarray(depths)
 
     return images, depths
-
-def calculateMetricCordinates():
-    
-    fx_rgb = 5.1885790117450188e+02;
-    fy_rgb = 5.1946961112127485e+02;
-    cx_rgb = 3.2558244941119034e+02;
-    cy_rgb = 2.5373616633400465e+02;
-
-    cam_matrix = np.array([[fx_rgb,0,cx_rgb],[0, fy_rgb, cy_rgb],[0,0,1]])
-    inverse_cam_matrix = np.linalg.inv(cam_matrix)
-    nx, ny = (304, 228)
-    x = np.linspace(0, nx-1, nx)
-    y = np.linspace(0, ny-1, ny)
-    xv, yv = np.meshgrid(x, y)
-    zv = np.ones((ny,nx))
-    pixel_cord = np.stack((xv,yv,zv), axis=2)
-    metric_cord = np.empty(shape=(228,304,3))
-    for i in range(228):
-        for j in range(304):
-            metric_cord[i][j] = np.dot(inverse_cam_matrix, pixel_cord[i][j])
-    return metric_cord[:,:,:2]
 
 def next_batch_joint(size, im_dir, indices, out_height, out_width, subdir ):
     images = []

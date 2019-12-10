@@ -14,7 +14,7 @@ def train(model, img_dir, split_path):
 
     height = 228
     width = 304
-    channels = 3
+    channels = 5
     batch_size = 4 #16
     out_height = 128
     out_width = 160
@@ -90,7 +90,7 @@ def train(model, img_dir, split_path):
         #optinal
 
         #try:
-        saver2.restore(sess, model)
+        #saver2.restore(sess, model)
         #except:
             #print('something wrong')
 
@@ -108,7 +108,8 @@ def train(model, img_dir, split_path):
         #shuffled_indices = np.arange(num_train_images)
         #validation_indices = np.arange(num_train_images+1 , num_train_images + num_valid_images)
         
-        imgs, g_trths = augment_images(img_dir, shuffled_indices)
+        #imgs, g_trths = augment_images(img_dir, shuffled_indices)
+        imgs, g_trths = metric_images(img_dir, shuffled_indices)
        
         # Keep training until reach max iterations
         for epoch in range(epochs):
@@ -182,11 +183,13 @@ def train(model, img_dir, split_path):
             # VALIDATION-SET LOSS --------------------------------------------------------------------------
             step = 1
             valid_loss = 0.
-
+            v_imgs, v_g_trths = metric_images(img_dir, validation_indices)
             while step * batch_size < num_valid_images:
-                batch_x, batch_y = next_batch_nyu2(batch_size, img_dir,
-                  validation_indices[(step - 1) * batch_size :step * batch_size ],
-                  out_height, out_width, 'valid')
+                #batch_x, batch_y = next_batch_nyu2(batch_size, img_dir,
+                #  validation_indices[(step - 1) * batch_size :step * batch_size ],
+                #  out_height, out_width, 'valid')
+                batch_x = v_imgs[(step - 1) * batch_size : step * batch_size ]
+                batch_y = v_g_trths[(step - 1) * batch_size : step * batch_size ]
                 loss,valloss_summ = sess.run([cost, val_summary], feed_dict={x: batch_x, y: batch_y, keep_prob: 1., is_training: False})
                 
                 '''
