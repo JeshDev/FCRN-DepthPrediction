@@ -36,6 +36,7 @@ In the following table, we report the results of proposed metric model compared 
 | **Proposed Metric Model**	| **0.3671** | **1.3523** | **0.1720** |
 
 - Qualitative results:
+
 ![Results](https://github.com/JeshDev/FCRN-DepthPrediction/blob/master/results.png)
 
 ## License
