@@ -17,11 +17,18 @@ This work is an extension to the existing state-of-art methods for Depth Predict
 
 The trained model is in TensorFlow Framework v1. Please read below for more information on how to get started.
 
+### Prerequisites
+
+[NYU Labelled Dataset](http://horatio.cs.nyu.edu/mit/silberman/nyu_depth_v2/nyu_depth_v2_labeled.mat) <br />
+Official NYU train-test split (Included in NYU_Data Folder)<br />
+Kinect Camera Parameters (Included in NYU_Data Folder)<br />
+Pretrained ResNet weight checkpoint
+
 ### TensorFlow
 The code provided in the *tensorflow* folder requires accordingly a successful installation of the [TensorFlow](https://www.tensorflow.org/) library (any platform). 
-The model's graph is constructed in ```fcrn.py``` and we used pretrained ResNet weights for training.
-The code for training is found in ```train.py``` and and hyperparameters can be changed there. Use ```python train.py resnet-weights.ckpt NYUImageFolderPath OfficialSplitFilePath``` to try the code.
-```predict.py``` provides sample code for using the network to predict the depth map of an input image. Use ```python predict.py NYU_FCRN_model.ckpt yourimage.jpg``` to try the code. 
+The model's graph is constructed in ```fcrn.py``` and we used pretrained ResNet weights for training.<br />
+The code for training is found in ```train.py``` and and hyperparameters can be changed there. Use ```python train.py resnet-weights.ckpt NYUImageFolderPath OfficialSplitFilePath``` to try the code.<br />
+```predict.py``` provides sample code for using the network to predict the depth map of an input image. Use ```python predict.py NYU_FCRN_model.ckpt yourimage.jpg``` to try the code. <br />
 For acquiring the evaluation on NYU or Sun3D, the user can run  `evaluate.py` or `evaluateSun3D.py` respectively.
 
 
