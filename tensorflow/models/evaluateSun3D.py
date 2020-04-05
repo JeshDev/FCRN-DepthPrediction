@@ -17,13 +17,11 @@ def evaluate(model_data_path, image_path, split_path):
     height = 228
     width = 304
     channels = 5 #3
-    num_test_images = 654
+    #num_test_images = 654
     batch_size = 64
-    
-    #Load NYU images
-    f = h5py.File(image_path)
-    official_split = scipy.io.loadmat(split_path) 
-    indices = np.squeeze(official_split['testNdxs'], axis = 1) #indices from official NYU split
+     
+    #Load Sun 3D dataset
+    sun_imgs, sun_gts, dataset_label, indices_size = utils.sun3Ddataset()
     
     abs_rels = []
     rmses = []
@@ -35,54 +33,34 @@ def evaluate(model_data_path, image_path, split_path):
     # Construct the network
     net = ResNet50UpProj({'data': input_node}, batch_size, 1, False)
     step = 1
-    #print(indices)
+    #print(indices_size)
     
-    #Get initial metric coordinates
-    fx, fy ,cx, cy = Intrinsic.initIntrinsic()
-    final_fx, final_fy ,final_cx, final_cy = Intrinsic.resizeIntrinsic(228, 304 ,fx, fy ,cx, cy, 2.0) 
-    orig_metric_cord = Intrinsic.findMetricCordinates(final_fx, final_fy ,final_cx, final_cy, 304, 228)
-    
-    # 3 crops and resize all crops to 304x228
-    crop1_fx, crop1_fy ,crop1_cx, crop1_cy = Intrinsic.crop_and_resizeIntrinsic(423, 567, 468, 624,fx, fy ,cx, cy, 1.85) # 90% crop
-    crop2_fx, crop2_fy ,crop2_cx, crop2_cy = Intrinsic.crop_and_resizeIntrinsic(375, 500, 468, 624,fx, fy ,cx, cy, 1.64) # 80% crop
-    crop3_fx, crop3_fy ,crop3_cx, crop3_cy = Intrinsic.crop_and_resizeIntrinsic(354, 472, 468, 624,fx, fy ,cx, cy, 1.55) # 75% crop 
-    
-    #Get metric coordinates for cropped pics
-    crop_metric_cord = []
-    crop_metric_cord.append(Intrinsic.findMetricCordinates(crop1_fx, crop1_fy ,crop1_cx, crop1_cy, 304, 228))
-    crop_metric_cord.append(Intrinsic.findMetricCordinates(crop2_fx, crop2_fy ,crop2_cx, crop2_cy, 304, 228))
-    crop_metric_cord.append(Intrinsic.findMetricCordinates(crop3_fx, crop3_fy ,crop3_cx, crop3_cy, 304, 228))
+    #get pre calculated metric coordinates for all sub datasets
+    orig_metric_cord, crop_metric_cord, res_size = Intrinsic.findSun3DMetricCoords()
     
     #Testing in batches
-    while step * batch_size <= indices.size: #indices_size: 
+    while step * batch_size <= indices_size: #indices.size:
         
         inp_batch = []
         gt_batch = []
         
-        res_size = [[423,564], [375, 500], [354, 472]] # 90%, 80%, 75% crop
-        crops = len(res_size)
+        #res_size = [[423,564], [375, 500], [354, 472]] # 90%, 80%, 75% crop
+        crops = len(res_size['NYUdata'])
         #print('Value ' + str(int(batch_size/(crops+1))))
         
         # Get the image and ground truth numpy arrays for entire batch 
-        for index in indices[(step - 1) * int(batch_size/(crops+1)) : step * int(batch_size/(crops+1))]:
-        #for index in range((step - 1) * int(batch_size/(crops+1)), step * int(batch_size/(crops+1))):
-        
-            img_file = f['images'][index-1]
-            img_reshaped = np.transpose(img_file, (2, 1, 0))
-            img = Image.fromarray(img_reshaped.astype(np.uint8), 'RGB')
+        for index in range((step - 1) * int(batch_size/(crops+1)), step * int(batch_size/(crops+1))):
+            print('Index: ' + str((step - 1) * int(batch_size/(crops+1))) + ' --->   ' + str( step * int(batch_size/(crops+1))))
+            img = Image.open(sun_imgs[index])
             border = (8, 6, 8, 6) # left, up, right, bottom
             cropped_img = ImageOps.crop(img, border)
             resized_img = cropped_img.resize((304, 228), Image.BILINEAR)
-            #img = np.asarray(resized_img).reshape(1, height, width, channels)
-            transfrmd_img = np.concatenate((np.asarray(resized_img), orig_metric_cord), axis = 2)   
+            transfrmd_img = np.concatenate((np.asarray(resized_img), orig_metric_cord[dataset_label[index]]), axis = 2)   
             
             #inp_batch.append(np.asarray(resized_img))
             inp_batch.append(transfrmd_img)
-            #inp_batch = np.squeeze(np.array(inp_batch), axis=1)
             
-            dpth_file = f['depths'][index-1].T
-            #dpth = Image.open(sun_gts[index])
-            dpth = Image.fromarray(dpth_file.astype(np.float64))
+            dpth = Image.open(sun_gts[index])
             cropped_dpth = ImageOps.crop(dpth, border)
             resized_dpth = cropped_dpth.resize((160, 128), Image.NEAREST)
             resized_dpth = np.expand_dims(resized_dpth, axis = 3)
@@ -99,13 +77,13 @@ def evaluate(model_data_path, image_path, split_path):
             
             #print('crops ' + str(range(crops)))
             for i in range(crops):
-                cropinfo = Intrinsic.random_crop(np.asarray(cropped_img), res_size[i])
+                cropinfo = Intrinsic.random_crop(np.asarray(cropped_img), res_size[dataset_label[index]][i])
                 crop_img.append(cropinfo[0])
                 col_cj.append(cropinfo[1])
                 row_ci.append(cropinfo[2])
                 resize_img.append( Image.fromarray(crop_img[i].astype(np.uint8), 'RGB').resize((304, 228), Image.BILINEAR))
-                crop_transfrmd_img.append( np.concatenate((np.asarray(resize_img[i]), crop_metric_cord[i]), axis = 2))
-                crop_dpth.append(np.asarray(cropped_dpth)[ row_ci[i]:row_ci[i]+res_size[i][0], col_cj[i]: col_cj[i] + res_size[i][1] ])
+                crop_transfrmd_img.append( np.concatenate((np.asarray(resize_img[i]), crop_metric_cord[dataset_label[index]][i]), axis = 2))
+                crop_dpth.append(np.asarray(cropped_dpth)[ row_ci[i]:row_ci[i]+res_size[dataset_label[index]][i][0], col_cj[i]: col_cj[i] + res_size[dataset_label[index]][i][1] ])
                 resize_dpth.append(Image.fromarray(crop_dpth[i]).resize((160, 128), Image.NEAREST))
                 resize_dpth[i] = np.expand_dims(resize_dpth[i], axis = 3)
                 inp_batch.append(np.asarray(crop_transfrmd_img[i])) #crop_transfrmd_img[i]
@@ -138,7 +116,6 @@ def evaluate(model_data_path, image_path, split_path):
             #print('Min value ' + str(np.min(np.array(pred)[ind])))
             
             #abs_rel = np.mean(np.abs(np.array(gt_batch)[ind] - pred[ind]) / np.array(gt_batch)[ind])
-            #Calculate error metrics
             abs_rel = np.sum(np.abs(gt_masked - pred_masked) / (gt_masked + epsilon)) / numpix
             rmse = (np.array(gt_batch)[ind] - pred[ind]) ** 2
             rmse = np.sqrt(rmse.mean())
@@ -166,7 +143,7 @@ def main():
     parser.add_argument('split_path', help='Path to official split file')
     args = parser.parse_args()
 
-    # Evaluate the image
+    # Evaluate the testset
     evaluate(args.model_path, args.image_paths, args.split_path)
     
     os._exit(0)
