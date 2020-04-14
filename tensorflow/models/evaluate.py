@@ -99,7 +99,7 @@ def evaluate(model_data_path, image_path, split_path):
             
             #print('crops ' + str(range(crops)))
             for i in range(crops):
-                cropinfo = Intrinsic.random_crop(np.asarray(cropped_img), res_size[i])
+                cropinfo = Intrinsic.center_crop(np.asarray(cropped_img), res_size[i]) #Random or center crop
                 crop_img.append(cropinfo[0])
                 col_cj.append(cropinfo[1])
                 row_ci.append(cropinfo[2])

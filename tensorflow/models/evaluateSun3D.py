@@ -16,7 +16,7 @@ def evaluate(model_data_path, image_path, split_path):
     # Default input size
     height = 228
     width = 304
-    channels = 5 #3
+    channels = 3 #5
     #num_test_images = 654
     batch_size = 64
      
@@ -55,10 +55,10 @@ def evaluate(model_data_path, image_path, split_path):
             border = (8, 6, 8, 6) # left, up, right, bottom
             cropped_img = ImageOps.crop(img, border)
             resized_img = cropped_img.resize((304, 228), Image.BILINEAR)
-            transfrmd_img = np.concatenate((np.asarray(resized_img), orig_metric_cord[dataset_label[index]]), axis = 2)   
+            #transfrmd_img = np.concatenate((np.asarray(resized_img), orig_metric_cord[dataset_label[index]]), axis = 2)   
             
-            #inp_batch.append(np.asarray(resized_img))
-            inp_batch.append(transfrmd_img)
+            inp_batch.append(np.asarray(resized_img))
+            #inp_batch.append(transfrmd_img)
             
             dpth = Image.open(sun_gts[index])
             cropped_dpth = ImageOps.crop(dpth, border)
@@ -77,16 +77,18 @@ def evaluate(model_data_path, image_path, split_path):
             
             #print('crops ' + str(range(crops)))
             for i in range(crops):
-                cropinfo = Intrinsic.random_crop(np.asarray(cropped_img), res_size[dataset_label[index]][i])
+                cropinfo = Intrinsic.center_crop(np.asarray(cropped_img), res_size[dataset_label[index]][i]) #Random or center crop
                 crop_img.append(cropinfo[0])
                 col_cj.append(cropinfo[1])
                 row_ci.append(cropinfo[2])
                 resize_img.append( Image.fromarray(crop_img[i].astype(np.uint8), 'RGB').resize((304, 228), Image.BILINEAR))
-                crop_transfrmd_img.append( np.concatenate((np.asarray(resize_img[i]), crop_metric_cord[dataset_label[index]][i]), axis = 2))
+                #crop_transfrmd_img.append( np.concatenate((np.asarray(resize_img[i]), crop_metric_cord[dataset_label[index]][i]), axis = 2))
                 crop_dpth.append(np.asarray(cropped_dpth)[ row_ci[i]:row_ci[i]+res_size[dataset_label[index]][i][0], col_cj[i]: col_cj[i] + res_size[dataset_label[index]][i][1] ])
                 resize_dpth.append(Image.fromarray(crop_dpth[i]).resize((160, 128), Image.NEAREST))
-                resize_dpth[i] = np.expand_dims(resize_dpth[i], axis = 3)
-                inp_batch.append(np.asarray(crop_transfrmd_img[i])) #crop_transfrmd_img[i]
+                resize_dpth_temp = np.array(resize_dpth[i])/10000.
+                resize_dpth[i] = np.expand_dims(resize_dpth_temp, axis = 3)
+                
+                inp_batch.append(np.asarray(resize_img[i])) #crop_transfrmd_img[i]
                 gt_batch.append(np.asarray(resize_dpth[i]))
             
         print('-------Batch: ' + str(step) + ' Images: ' + str(step * batch_size) + '-----------------')
@@ -103,7 +105,7 @@ def evaluate(model_data_path, image_path, split_path):
             # Predict depth for entire batch
             #pred = sess.run(net.get_output(), feed_dict={input_node: np.squeeze(np.array(inp_batch), axis=1)})
             pred = sess.run(net.get_output(), feed_dict={input_node: np.array(inp_batch)})
-            #print( 'The predicted depth map shape: ' + str(pred.shape))
+            print( 'The predicted depth map shape: ' + str(pred.shape))
             
         #Calculate error values for all predictions in the batch
         for ind in range(batch_size):
@@ -111,6 +113,7 @@ def evaluate(model_data_path, image_path, split_path):
             mask = np.array(gt_batch)[ind] > 0.5 #assuming you have meters
             numpix = np.sum(mask)
             gt_masked = mask * np.array(gt_batch)[ind]
+            print( 'The ground truth shape: ' + str(np.array(gt_batch)[ind].shape))
             pred_masked = mask * np.array(pred)[ind]
             epsilon = 0.00001
             #print('Min value ' + str(np.min(np.array(pred)[ind])))

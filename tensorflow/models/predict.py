@@ -27,7 +27,7 @@ def predict(model_data_path, image_path):
     #Load Sun 3D dataset
     sun_imgs, sun_gts, dataset_label, indices_size = utils.sun3Ddataset()
     orig_metric_cord, crop_metric_cord, res_size = Intrinsic.findSun3DMetricCoords()
-    index = 105
+    index = 100
     
     #f = h5py.File(image_path)
         #official_split = scipy.io.loadmat(split_path)
@@ -58,7 +58,7 @@ def predict(model_data_path, image_path):
     cropped_dpth = ImageOps.crop(dpth, border)
     resized_dpth = cropped_dpth.resize((160, 128), Image.NEAREST)
     #resized_dpth = np.expand_dims(resized_dpth, axis = 3)
-    #dpth = np.array(dpth)/1000.
+    resized_dpth = np.array(resized_dpth)/10000.
     
 
     # Create a placeholder for the input image
@@ -85,10 +85,12 @@ def predict(model_data_path, image_path):
         # Plot result
         min_dpth = np.min(np.asarray(resized_dpth))
         max_dpth = np.max(np.asarray(resized_dpth))
+        print('Depth ' + str(min_dpth) + ' ' + str(max_dpth))
         min_pred = np.min(pred[0,:,:,0])
         max_pred = np.max(pred[0,:,:,0])
         min_val = np.minimum(min_dpth,min_pred )
         max_val = np.maximum(max_dpth,max_pred )
+        
         
         fig = plt.figure()
         ax1 = fig.add_subplot(1,2,1)
